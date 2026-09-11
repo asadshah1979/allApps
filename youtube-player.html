@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width,
+                 initial-scale=1.0,
+                 maximum-scale=1.0,
+                 user-scalable=no"
+    >
+
+    <title>YouTube Player</title>
+
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #player {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="player"></div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const videoId = params.get("videoId");
+
+    let player;
+
+    function onYouTubeIframeAPIReady() {
+
+        if (!videoId) {
+            console.error("Missing videoId");
+            return;
+        }
+
+        player = new YT.Player("player", {
+
+            width: "100%",
+            height: "100%",
+
+            videoId: videoId,
+
+            playerVars: {
+                playsinline: 1,
+                rel: 0,
+                enablejsapi: 1,
+
+                // IMPORTANT:
+                // This is now a real HTTPS GitHub Pages origin.
+                origin: window.location.origin
+            },
+
+            events: {
+
+                onReady: function(event) {
+                    console.log("YouTube player ready");
+                },
+
+                onStateChange: function(event) {
+                    console.log(
+                        "YouTube state: " + event.data
+                    );
+                },
+
+                onError: function(event) {
+                    console.error(
+                        "YouTube error: " + event.data
+                    );
+                }
+            }
+        });
+    }
+</script>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+
+</body>
+</html>
