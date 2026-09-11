@@ -25,6 +25,9 @@
         }
 
         #player {
+            position: absolute;
+            left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
         }
@@ -36,17 +39,34 @@
 <div id="player"></div>
 
 <script>
+    // ---------------------------------------------------------
+    // Get video ID from URL
+    //
+    // Example:
+    // youtube-player.html?videoId=rKrC06EFl0k
+    // ---------------------------------------------------------
+
     const params = new URLSearchParams(window.location.search);
     const videoId = params.get("videoId");
 
     let player;
 
+
+    // ---------------------------------------------------------
+    // YouTube IFrame API ready
+    // ---------------------------------------------------------
+
     function onYouTubeIframeAPIReady() {
 
         if (!videoId) {
-            console.error("Missing videoId");
+            console.error("YouTube Player: Missing videoId");
             return;
         }
+
+        console.log(
+            "YouTube Player: Loading video " + videoId
+        );
+
 
         player = new YT.Player("player", {
 
@@ -55,29 +75,82 @@
 
             videoId: videoId,
 
+
+            // -------------------------------------------------
+            // YouTube player parameters
+            // -------------------------------------------------
+
             playerVars: {
+
+                // Request automatic playback
+                autoplay: 1,
+
+                // Play inline rather than forcing fullscreen
                 playsinline: 1,
+
+                // Don't show unrelated recommended videos
                 rel: 0,
+
+                // Required for JavaScript API communication
                 enablejsapi: 1,
 
                 // IMPORTANT:
-                // This is now a real HTTPS GitHub Pages origin.
+                // Use the actual HTTPS origin of this page.
                 origin: window.location.origin
             },
 
+
+            // -------------------------------------------------
+            // Player events
+            // -------------------------------------------------
+
             events: {
 
+                // Player initialized
                 onReady: function(event) {
-                    console.log("YouTube player ready");
+
+                    console.log(
+                        "YouTube player ready"
+                    );
+
+                    // Explicitly request playback.
+                    // This works together with autoplay: 1.
+                    event.target.playVideo();
                 },
 
+
+                // Playback state changed
                 onStateChange: function(event) {
+
                     console.log(
                         "YouTube state: " + event.data
                     );
+
+                    /*
+                     * YouTube states:
+                     *
+                     * -1 = unstarted
+                     *  0 = ended
+                     *  1 = playing
+                     *  2 = paused
+                     *  3 = buffering
+                     *  5 = video cued
+                     */
                 },
 
+
+                // Autoplay was blocked by the browser/WebView
+                onAutoplayBlocked: function() {
+
+                    console.warn(
+                        "YouTube autoplay was blocked"
+                    );
+                },
+
+
+                // YouTube player error
                 onError: function(event) {
+
                     console.error(
                         "YouTube error: " + event.data
                     );
@@ -87,6 +160,10 @@
     }
 </script>
 
+
+<!--
+    YouTube IFrame Player API
+-->
 <script src="https://www.youtube.com/iframe_api"></script>
 
 </body>
