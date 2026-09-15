@@ -1,170 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width,
-                 initial-scale=1.0,
-                 maximum-scale=1.0,
-                 user-scalable=no"
-    >
-
-    <title>YouTube Player</title>
-
-    <style>
-        html,
-        body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-            overflow: hidden;
-        }
-
-        #player {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>YouTube Player</title>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hidden}
+#player{position:absolute;left:0;top:0;width:100%;height:100%}
+</style>
 </head>
-
 <body>
-
 <div id="player"></div>
-
 <script>
-    // ---------------------------------------------------------
-    // Get video ID from URL
-    //
-    // Example:
-    // youtube-player.html?videoId=rKrC06EFl0k
-    // ---------------------------------------------------------
+const params = new URLSearchParams(window.location.search);
+const videoId = params.get("videoId");
+let player;
 
-    const params = new URLSearchParams(window.location.search);
-    const videoId = params.get("videoId");
-
-    let player;
-
-
-    // ---------------------------------------------------------
-    // YouTube IFrame API ready
-    // ---------------------------------------------------------
-
-    function onYouTubeIframeAPIReady() {
-
-        if (!videoId) {
-            console.error("YouTube Player: Missing videoId");
-            return;
-        }
-
-        console.log(
-            "YouTube Player: Loading video " + videoId
-        );
-
-
-        player = new YT.Player("player", {
-
-            width: "100%",
-            height: "100%",
-
-            videoId: videoId,
-
-
-            // -------------------------------------------------
-            // YouTube player parameters
-            // -------------------------------------------------
-
-            playerVars: {
-
-                // Request automatic playback
-                autoplay: 1,
-
-                // Play inline rather than forcing fullscreen
-                playsinline: 1,
-
-                // Don't show unrelated recommended videos
-                rel: 0,
-
-                // Required for JavaScript API communication
-                enablejsapi: 1,
-
-                // IMPORTANT:
-                // Use the actual HTTPS origin of this page.
-                origin: window.location.origin
-            },
-
-
-            // -------------------------------------------------
-            // Player events
-            // -------------------------------------------------
-
-            events: {
-
-                // Player initialized
-                onReady: function(event) {
-
-                    console.log(
-                        "YouTube player ready"
-                    );
-
-                    // Explicitly request playback.
-                    // This works together with autoplay: 1.
-                    event.target.playVideo();
-                },
-
-
-                // Playback state changed
-                onStateChange: function(event) {
-
-                    console.log(
-                        "YouTube state: " + event.data
-                    );
-
-                    /*
-                     * YouTube states:
-                     *
-                     * -1 = unstarted
-                     *  0 = ended
-                     *  1 = playing
-                     *  2 = paused
-                     *  3 = buffering
-                     *  5 = video cued
-                     */
-                },
-
-
-                // Autoplay was blocked by the browser/WebView
-                onAutoplayBlocked: function() {
-
-                    console.warn(
-                        "YouTube autoplay was blocked"
-                    );
-                },
-
-
-                // YouTube player error
-                onError: function(event) {
-
-                    console.error(
-                        "YouTube error: " + event.data
-                    );
-                }
-            }
-        });
+function notifyAndroid(name, value) {
+  try {
+    if (window.AndroidPlayer && typeof window.AndroidPlayer[name] === "function") {
+      if (value === undefined) window.AndroidPlayer[name]();
+      else window.AndroidPlayer[name](value);
     }
+  } catch (e) {
+    console.warn("Android bridge error", e);
+  }
+}
+
+function onYouTubeIframeAPIReady() {
+  if (!videoId) {
+    notifyAndroid("onPlayerError", 2);
+    return;
+  }
+
+  player = new YT.Player("player", {
+    width:"100%",
+    height:"100%",
+    videoId:videoId,
+    playerVars:{
+      autoplay:1,
+      playsinline:1,
+      rel:0,
+      enablejsapi:1,
+      origin:window.location.origin
+    },
+    events:{
+      onReady:function(event){
+        notifyAndroid("onPlayerReady");
+        event.target.playVideo();
+      },
+      onStateChange:function(event){
+        console.log("YouTube state: "+event.data);
+        // PLAYING = 1
+        if (event.data === YT.PlayerState.PLAYING) {
+          notifyAndroid("onPlayerPlaying");
+        }
+      },
+      onAutoplayBlocked:function(){
+        console.warn("YouTube autoplay blocked");
+        notifyAndroid("onPlayerAutoplayBlocked");
+      },
+      onError:function(event){
+        console.error("YouTube error: "+event.data);
+        notifyAndroid("onPlayerError", event.data);
+      }
+    }
+  });
+}
 </script>
-
-
-<!--
-    YouTube IFrame Player API
--->
 <script src="https://www.youtube.com/iframe_api"></script>
-
 </body>
 </html>
