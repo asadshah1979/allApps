@@ -10,20 +10,57 @@ html,body{margin:0;padding:0;width:100%;height:100%;background:#000;overflow:hid
 </style>
 </head>
 <body>
+
 <div id="player"></div>
+
 <script>
 const params = new URLSearchParams(window.location.search);
 const videoId = params.get("videoId");
-let player;
+
+let player = null;
+let progressTimer = null;
+let isPlaying = false;
 
 function notifyAndroid(name, value) {
   try {
     if (window.AndroidPlayer && typeof window.AndroidPlayer[name] === "function") {
-      if (value === undefined) window.AndroidPlayer[name]();
-      else window.AndroidPlayer[name](value);
+      if (value === undefined) {
+        window.AndroidPlayer[name]();
+      } else {
+        window.AndroidPlayer[name](String(value));
+      }
     }
   } catch (e) {
-    console.warn("Android bridge error", e);
+    console.error("Android bridge error:", name, e);
+  }
+}
+
+function startProgressTimer() {
+  if (progressTimer !== null) return;
+
+  progressTimer = setInterval(function() {
+    if (!player || !isPlaying) return;
+
+    try {
+      const current = player.getCurrentTime();
+      const duration = player.getDuration();
+
+      if (duration > 0 && current >= 0) {
+        notifyAndroid(
+          "onPlayerProgress",
+          current + "|" + duration
+        );
+      }
+    } catch (e) {
+      console.error("Progress error:", e);
+    }
+  }, 1000);
+}
+
+function stopProgressTimer() {
+  if (progressTimer !== null) {
+    clearInterval(progressTimer);
+    progressTimer = null;
   }
 }
 
@@ -34,40 +71,56 @@ function onYouTubeIframeAPIReady() {
   }
 
   player = new YT.Player("player", {
-    width:"100%",
-    height:"100%",
-    videoId:videoId,
-    playerVars:{
-      autoplay:1,
-      playsinline:1,
-      rel:0,
-      enablejsapi:1,
-      origin:window.location.origin
+    width: "100%",
+    height: "100%",
+    videoId: videoId,
+
+    playerVars: {
+      autoplay: 1,
+      playsinline: 1,
+      rel: 0,
+      enablejsapi: 1,
+      origin: window.location.origin
     },
-    events:{
-      onReady:function(event){
+
+    events: {
+      onReady: function(event) {
         notifyAndroid("onPlayerReady");
         event.target.playVideo();
       },
-      onStateChange:function(event){
-        console.log("YouTube state: "+event.data);
-        // PLAYING = 1
+
+      onStateChange: function(event) {
         if (event.data === YT.PlayerState.PLAYING) {
+          isPlaying = true;
           notifyAndroid("onPlayerPlaying");
+          startProgressTimer();
+
+        } else if (
+          event.data === YT.PlayerState.PAUSED ||
+          event.data === YT.PlayerState.ENDED
+        ) {
+          isPlaying = false;
+          stopProgressTimer();
         }
       },
-      onAutoplayBlocked:function(){
-        console.warn("YouTube autoplay blocked");
+
+      onAutoplayBlocked: function() {
+        isPlaying = false;
+        stopProgressTimer();
         notifyAndroid("onPlayerAutoplayBlocked");
       },
-      onError:function(event){
-        console.error("YouTube error: "+event.data);
+
+      onError: function(event) {
+        isPlaying = false;
+        stopProgressTimer();
         notifyAndroid("onPlayerError", event.data);
       }
     }
   });
 }
 </script>
+
 <script src="https://www.youtube.com/iframe_api"></script>
+
 </body>
 </html>
